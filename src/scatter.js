@@ -5,46 +5,51 @@ import { Text } from '@vx/text'
 
 import { extent } from 'd3-array'
 
-export default ({ data, width, height, colorFunc }) => {
+export default class Scatter extends React.Component {
+  constructor(props) {
+    super(props)
+    const { width, height, margin, data } = props
+    this.initialDomain = {
+      x: extent(data, point => point.x),
+      y: extent(data, point => point.y),
+      z: extent(data, point => point.z),
+    }
+    this.xScale = scaleLinear({
+      domain: this.initialDomain.x,
+      range: [margin.left, width - margin.right],
+    })
 
-  const margin = {
-    top: 40,
-    left: 50,
-    bottom: 40,
-    right: 40,
+    this.yScale = scaleLinear({
+      domain: this.initialDomain.y,
+      range: [height - margin.bottom, margin.top],
+    })
+
+    this.colorScale = scaleLinear({
+      domain: this.initialDomain.z,
+      range: [0, 1],
+    })
   }
 
-  const xScale = scaleLinear({
-    domain: extent(data, point => point.x),
-    range: [margin.left, width - margin.right],
-  })
-
-  const yScale = scaleLinear({
-    domain: extent(data, point => point.y),
-    range: [height - margin.bottom, margin.top],
-  })
-
-  const colorScale = scaleLinear({
-    domain: extent(data, point => point.z),
-    range: [0, 1],
-  })
-
-  return (
-    <svg width={width} height={height}>
-      <AxisLeft scale={yScale} label="y" left={margin.left} />
-      <AxisBottom scale={xScale} label="x" top={height - margin.bottom} />
-      <g>
-        {data.map((point, k) => {
-          const cx = xScale(point.x)
-          const cy = yScale(point.y)
-          return (
-            //TODO: Maybe fill isn't the right way to give colour?
-            <Text key={k} x={cx} y={cy} fill={colorFunc(colorScale(point.z))}>
-              +
-            </Text>
-          )
-        })}
-      </g>
-    </svg>
-  )
+  render() {
+    const { width, height, margin, data, colorFunc } = this.props
+    const { xScale, yScale, colorScale } = this
+    return (
+      <svg width={width} height={height} ref="svg">
+        <AxisLeft scale={yScale} label="y" left={margin.left} />
+        <AxisBottom scale={xScale} label="x" top={height - margin.bottom} />
+        <g>
+          {data.map((point, k) => {
+            const cx = xScale(point.x)
+            const cy = yScale(point.y)
+            return (
+              //TODO: Maybe fill isn't the right way to give colour?
+              <Text key={k} x={cx} y={cy} fill={colorFunc(colorScale(point.z))}>
+                +
+              </Text>
+            )
+          })}
+        </g>
+      </svg>
+    )
+  }
 }

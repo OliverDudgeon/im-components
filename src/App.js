@@ -15,7 +15,18 @@ function App() {
   }))
   return (
     <div className="App">
-      <ScatterPlot data={data} width={500} height={300} colorFunc={interpolateYlOrBr} />
+      <ScatterPlot
+        data={data}
+        width={500}
+        height={300}
+        colorFunc={interpolateYlOrBr}
+        margin={{
+          top: 40,
+          left: 50,
+          bottom: 40,
+          right: 40,
+        }}
+      />
       {/* <ZoomTest
         width={800}
         height={800}
