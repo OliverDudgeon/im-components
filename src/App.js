@@ -1,26 +1,33 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React from 'react'
+import './App.css'
 
+import { interpolateYlOrBr } from 'd3-scale-chromatic'
+
+import ScatterPlot from './scatter'
+// import ZoomTest from './zoom'
+
+// TODO: Does this need support for central axes with -ve data points?
 function App() {
+  const data = Array.from({ length: 30 }, () => ({
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+    z: Math.random() * 10,
+  }))
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+      <ScatterPlot data={data} width={500} height={300} colorFunc={interpolateYlOrBr} />
+      {/* <ZoomTest
+        width={800}
+        height={800}
+        margin={{
+          top: 40,
+          left: 50,
+          bottom: 40,
+          right: 40,
+        }}
+      /> */}
     </div>
-  );
+  )
 }
 
-export default App;
+export default App
