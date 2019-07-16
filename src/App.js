@@ -4,7 +4,6 @@ import './App.css'
 import { interpolateYlOrBr } from 'd3-scale-chromatic'
 
 import ScatterPlot from './scatter'
-import ZoomTest from './zoom'
 
 // TODO: Does this need support for central axes with -ve data points?
 function App() {
@@ -12,7 +11,10 @@ function App() {
     x: Math.random() * 100,
     y: Math.random() * 100,
     z: Math.random() * 10,
+    r: Math.random() * 5,
+    selected: false,
   }))
+
   return (
     <div className="App">
       <ScatterPlot
@@ -20,6 +22,9 @@ function App() {
         width={700}
         height={700}
         colorFunc={interpolateYlOrBr}
+        minRadius={0}
+        maxRadius={10}
+        radius={5}
         margin={{
           top: 40,
           left: 50,
@@ -27,18 +32,6 @@ function App() {
           right: 40,
         }}
       />
-      {/* <ZoomTest
-        data={data}
-        width={500}
-        height={300}
-        colorFunc={interpolateYlOrBr}
-        margin={{
-          top: 40,
-          left: 50,
-          bottom: 40,
-          right: 40,
-        }}
-      /> */}
     </div>
   )
 }

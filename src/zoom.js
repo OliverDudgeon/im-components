@@ -5,7 +5,9 @@ import { Group } from '@vx/group'
 import { AxisLeft, AxisBottom } from '@vx/axis'
 import { BoxBrush, withBrush, getCoordsFromEvent, constrainToRegion } from '@vx/brush'
 
-const points = genRandomNormalPoints(50)
+import { Motion, spring } from 'react-motion'
+
+const points = genRandomNormalPoints(20)
 
 class BrushChart extends React.Component {
   constructor(props) {
@@ -27,11 +29,13 @@ class BrushChart extends React.Component {
     this.xScale = scaleLinear({
       domain: this.initialDomain.x,
       range: [0, width - margin.left - margin.right],
+      clamp: true,
     })
 
     this.yScale = scaleLinear({
       domain: this.initialDomain.y,
       range: [height - margin.top - margin.bottom, 0],
+      clamp: true,
     })
 
     this.handleMouseDown = this.handleMouseDown.bind(this)
@@ -53,7 +57,7 @@ class BrushChart extends React.Component {
   }
 
   handleMouseMove(event) {
-    const { brush, onBrushDrag, updateBrush } = this.props
+    const { brush, onBrushDrag } = this.props
     // only update the brush region if we're dragging
     if (!brush.isBrushing) return
     const { extent: region } = this
@@ -120,7 +124,22 @@ class BrushChart extends React.Component {
         />
         <Group top={margin.top} left={margin.left}>
           {points.map(point => {
-            return <circle fill="red" cx={xScale(x(point))} cy={yScale(y(point))} r={3} />
+            return (
+              <Motion
+                key={`${x(point)}-${y(point)}-${z(point)}`}
+                defaultStyle={{ x: xMax / 2, y: yMax / 2 }}
+                style={{
+                  x: spring(xScale(x(point))),
+                  y: spring(yScale(y(point))),
+                }}
+              >
+                {interpolatingStyle => {
+                  return (
+                    <circle fill="red" cx={interpolatingStyle.x} cy={interpolatingStyle.y} r={3} />
+                  )
+                }}
+              </Motion>
+            )
           })}
         </Group>
         <BoxBrush brush={brush} />

@@ -1,24 +1,26 @@
 import React from 'react'
 import { AxisBottom, AxisLeft } from '@vx/axis'
 import { scaleLinear } from '@vx/scale'
-import { Text } from '@vx/text'
-import { getCoordsFromEvent, constrainToRegion, withBrush, BoxBrush } from '@vx/brush'
+import { getCoordsFromEvent, withBrush, BoxBrush } from '@vx/brush'
 
 import { extent } from 'd3-array'
 
 class Scatter extends React.Component {
+  svg = React.createRef()
+
   constructor(props) {
     super(props)
-    this.svg = React.createRef()
-    const { width, height, margin, data } = props
+    const { width, height, margin, data, minRadius, maxRadius } = props
 
     // The min-max of the data set
     this.initialDomain = {
       x: extent(data, point => point.x),
       y: extent(data, point => point.y),
       z: extent(data, point => point.z),
+      r: extent(data, point => point.r),
     }
 
+    // Four corners of the graph region
     this.extent = {
       x0: margin.left,
       x1: width - margin.right,
@@ -27,34 +29,41 @@ class Scatter extends React.Component {
     }
 
     // Scalar functions to convert between the data coords and the svg coords
-    this.xScale = scaleLinear({
-      domain: this.initialDomain.x,
-      range: [this.extent.x0, this.extent.x1],
-    })
-    this.yScale = scaleLinear({
-      domain: this.initialDomain.y,
-      range: [this.extent.y1, this.extent.y0],
-    })
-    this.colorScale = scaleLinear({
-      domain: this.initialDomain.z,
-      range: [0, 1],
-    })
+    this.rScale = this.state = {
+      data,
+      selectionMade: false,
+      xScale: scaleLinear({
+        domain: this.initialDomain.x,
+        range: [this.extent.x0, this.extent.x1],
+      }),
+      yScale: scaleLinear({
+        domain: this.initialDomain.y,
+        range: [this.extent.y1, this.extent.y0],
+      }),
+      colorScale: scaleLinear({
+        domain: this.initialDomain.z,
+        range: [0, 1],
+      }),
+      rScale: scaleLinear({
+        domain: this.initialDomain.r,
+        range: [minRadius, maxRadius],
+      }),
+    }
+
+    this.radiusProvided = data.every(p => p.r)
   }
 
   handleMouseDown = event => {
     const { onBrushStart } = this.props // Inserted with HOC withBrush
-
     const coords = getCoordsFromEvent(this.svg.current, event) // {x, y}
-    console.table(coords)
-    const { extent: region } = this
-    onBrushStart(constrainToRegion({ region, ...coords }))
+    onBrushStart(coords)
   }
 
-  scaleReset = () => {
-    const { xScale, yScale, colorScale, initialDomain } = this
-    xScale.domain(initialDomain.x)
-    yScale.domain(initialDomain.y)
-    colorScale.domain(initialDomain.z)
+  clearSelection = () => {
+    this.setState({
+      data: this.state.data.map(p => ({ ...p, selected: false })),
+      selectionMade: false,
+    })
   }
 
   handleMouseUp = event => {
@@ -62,14 +71,10 @@ class Scatter extends React.Component {
 
     if (brush.end) {
       const coords = getCoordsFromEvent(this.svg.current, event) // {x, y}
-      console.log(coords)
-      const { extent: region } = this
-      onBrushEnd(constrainToRegion({ region, ...coords }))
-      console.log('Brush end')
+      onBrushEnd(coords)
     } else {
       onBrushReset(event)
-      this.scaleReset()
-      console.log('Not brush end')
+      this.clearSelection()
     }
   }
 
@@ -77,27 +82,50 @@ class Scatter extends React.Component {
     const { brush, onBrushDrag } = this.props // Inserted with HOC withBrush
     if (brush.isBrushing) {
       const coords = getCoordsFromEvent(this.svg.current, event) // {x, y}
-      const { extent: region } = this
-      onBrushDrag(constrainToRegion({ region, ...coords }))
+      onBrushDrag(coords)
     }
   }
 
-  render() {
-
-    const {
-      xScale,
-      yScale,
-      colorScale,
-      props: { width, height, margin, data, colorFunc, brush },
-    } = this
-
-    if (brush.domain) {
-      const { domain } = brush
-      const { x0, x1, y0, y1 } = domain
-      // Converts svg coord system values back to data coord system
-      xScale.domain([x0, x1].map(xScale.invert))
-      yScale.domain([y0, y1].map(yScale.invert))
+  static pointInside = (x0, x1, y0, y1, { x, y, z, r }) => {
+    // Check that the point (x, y) is inside the drawn box
+    if (x >= x0 && x <= x1 && y >= y0 && y <= y1) {
+      return { x, y, z, r, selected: true }
+    } else {
+      return { x, y, z, r, selected: false }
     }
+  }
+
+  static getDerivedStateFromProps(props, state) {
+    const { xScale, yScale } = state
+    if (props.brush.domain) {
+      return Scatter.dataSelection(state, xScale, yScale, props.brush)
+    } else {
+      return null
+    }
+  }
+
+  static dataSelection = (state, xScale, yScale, brush) => {
+    let { x0, x1, y0, y1 } = brush.domain
+    // Sub-domain of the data points to be selected
+    x0 = xScale.invert(x0)
+    x1 = xScale.invert(x1)
+    y0 = yScale.invert(y0)
+    y1 = yScale.invert(y1)
+
+    // Partially apply pointInside
+    const pointInBrushBox = Scatter.pointInside.bind(null, x0, x1, y1, y0)
+
+    const data = state.data.map(pointInBrushBox)
+
+    return { data, selectionMade: data.some(p => p.selected) }
+  }
+
+  render() {
+    console.table(this.state.data)
+    const {
+      props: { width, height, margin, colorFunc, brush },
+      state: { data, selectionMade, xScale, yScale, colorScale, rScale },
+    } = this
 
     return (
       <svg
@@ -114,11 +142,17 @@ class Scatter extends React.Component {
           {data.map((point, k) => {
             const cx = xScale(point.x)
             const cy = yScale(point.y)
+            const r = rScale(point.r)
             return (
-              //TODO: Maybe fill isn't the right way to give colour?
-              <Text key={k} x={cx} y={cy} fill={colorFunc(colorScale(point.z))}>
-                +
-              </Text>
+              <circle
+                cx={cx}
+                cy={cy}
+                r={this.radiusProvided ? r : this.props.radius}
+                key={k}
+                fill={colorFunc(colorScale(point.z))}
+                // Make unselected points translucent but opaque if no selection is made
+                opacity={selectionMade ? (point.selected ? 1 : 0.2) : 1}
+              />
             )
           })}
         </g>
