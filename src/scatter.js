@@ -29,7 +29,7 @@ class Scatter extends React.Component {
     }
 
     // Scalar functions to convert between the data coords and the svg coords
-    this.rScale = this.state = {
+    this.state = {
       data,
       selectionMade: false,
       xScale: scaleLinear({
