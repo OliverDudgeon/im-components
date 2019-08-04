@@ -3,7 +3,7 @@ import './App.css'
 
 import { interpolateYlOrBr } from 'd3-scale-chromatic'
 
-import ScatterPlot from './scatter'
+import ScatterPlot from './components/scatter'
 
 // TODO: Does this need support for central axes with -ve data points?
 function App() {
@@ -19,8 +19,8 @@ function App() {
     <div className="App">
       <ScatterPlot
         data={data}
-        width={700}
-        height={700}
+        width={300}
+        height={300}
         colorFunc={interpolateYlOrBr}
         minRadius={0}
         maxRadius={10}
