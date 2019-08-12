@@ -8,6 +8,7 @@ import { Point, Margin, Box } from '../common/types';
 import withScales from '../HOC/withScales';
 
 type Brush = {
+  start: { x: number; y: number };
   end: { x: number; y: number };
   isBrushing: boolean;
   domain: Box;
@@ -31,27 +32,13 @@ interface ScatterProps {
   yScale: ScaleLinear<number, number>;
   colorScale: ScaleLinear<number, number>;
   rScale: ScaleLinear<number, number>;
-  updateSelection(data: Point[]): void;
-}
-
-interface ScatterState {
-  data: Point[];
+  updateSelection(bounds: Box): void;
+  clearSelection(): void;
   selectionMade: boolean;
 }
 
-class Scatter extends React.Component<ScatterProps, ScatterState> {
+class Scatter extends React.PureComponent<ScatterProps> {
   svg: React.RefObject<SVGSVGElement> = React.createRef();
-
-  constructor(props: ScatterProps) {
-    super(props);
-    const { data } = props;
-
-    // Scalar functions to convert between the data coords and the svg coords
-    this.state = {
-      data,
-      selectionMade: false,
-    };
-  }
 
   handleMouseDown = (event: React.MouseEvent) => {
     const { onBrushStart } = this.props; // Inserted with HOC withBrush
@@ -59,25 +46,30 @@ class Scatter extends React.Component<ScatterProps, ScatterState> {
     onBrushStart(coords);
   };
 
-  clearSelection = () => {
-    this.setState({
-      data: this.state.data.map(p => ({ ...p, selected: false })),
-      selectionMade: false,
-    });
-  };
-
-
-
   handleMouseUp = (event: React.MouseEvent) => {
-    const { brush, onBrushEnd, onBrushReset } = this.props; // Inserted with HOC withBrush
+    const { brush, onBrushEnd, onBrushReset, updateSelection, xScale, yScale } = this.props; // Inserted with HOC withBrush
 
     if (brush.end) {
       const coords = getCoordsFromEvent(this.svg.current, event); // {x, y}
       onBrushEnd(coords);
-      // Check if updateBrush in props allows the state to be changed properly up the tree.
+
+      // Sub-domain of the data points to be selected in the data-space
+      const x0 = xScale.invert(brush.start.x);
+      const x1 = xScale.invert(brush.end.x);
+      const y0 = yScale.invert(brush.start.y);
+      const y1 = yScale.invert(brush.end.y);
+
+      updateSelection({
+        x0: Math.min(x0, x1),
+        x1: Math.max(x0, x1),
+        y0: Math.min(y0, y1),
+        y1: Math.max(y0, y1),
+      });
+
+
     } else {
       onBrushReset(event);
-      this.clearSelection();
+      this.props.clearSelection();
     }
   };
 
@@ -89,62 +81,30 @@ class Scatter extends React.Component<ScatterProps, ScatterState> {
     }
   };
 
-  static pointInside = (x0: number, x1: number, y0: number, y1: number, { x, y, z, r }: Point) => {
-    // Check that the point (x, y) is inside the drawn box
-    if (x >= x0 && x <= x1 && y >= y0 && y <= y1) {
-      return { x, y, z, r, selected: true };
-    } else {
-      return { x, y, z, r, selected: false };
-    }
-  };
-
-  static getDerivedStateFromProps(props: ScatterProps, state: ScatterState) {
-    const { xScale, yScale } = props;
-    if (props.brush.domain) {
-      return Scatter.dataSelection(state, xScale, yScale, props.brush);
-    } else {
-      return null;
-    }
-  }
-
-  static dataSelection = (
-    state: ScatterState,
-    xScale: ScaleLinear<number, number>,
-    yScale: ScaleLinear<number, number>,
-    brush: Brush,
-  ) => {
-    let { x0, x1, y0, y1 } = brush.domain;
-    // Sub-domain of the data points to be selected
-    x0 = xScale.invert(x0);
-    x1 = xScale.invert(x1);
-    y0 = yScale.invert(y0);
-    y1 = yScale.invert(y1);
-
-    // Partially apply pointInside
-    const pointInBrushBox = Scatter.pointInside.bind(null, x0, x1, y1, y0);
-
-    const data = state.data.map(pointInBrushBox);
-
-    return { data, selectionMade: data.some(p => p.selected) };
-  };
-
   render() {
     const {
-      props: { width, height, margin, colorFunc, brush, xScale, yScale, colorScale, rScale },
-      state: { data, selectionMade },
-    } = this;
+      data,
+      selectionMade,
+      margin,
+      colorFunc,
+      brush,
+      xScale,
+      yScale,
+      colorScale,
+      rScale,
+    } = this.props;
 
     return (
       <svg
-        width={width}
-        height={height}
+        width={this.props.width}
+        height={this.props.height}
         ref={this.svg}
         onMouseDown={this.handleMouseDown}
         onMouseUp={this.handleMouseUp}
         onMouseMove={this.handleMouseMove}
       >
         <AxisLeft scale={yScale} label="y" left={margin.left} />
-        <AxisBottom scale={xScale} label="x" top={height - margin.bottom} />
+        <AxisBottom scale={xScale} label="x" top={this.props.height - margin.bottom} />
         <g>
           {data.map((point, k) => {
             const cx = xScale(point.x);
