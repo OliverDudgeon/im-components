@@ -19,8 +19,6 @@ interface ScatterProps {
   width: number;
   height: number;
   colorFunc(z: number): string;
-  minRadius: number;
-  maxRadius: number;
   radius: number;
   margin: Margin;
   onBrushStart(coords: Box): void;
@@ -32,7 +30,7 @@ interface ScatterProps {
   yScale: ScaleLinear<number, number>;
   colorScale: ScaleLinear<number, number>;
   rScale: ScaleLinear<number, number>;
-  updateSelection(bounds: Box): void;
+  onBrushDragged(bounds: Box): void;
   clearSelection(): void;
   selectionMade: boolean;
 }
@@ -42,57 +40,51 @@ const Scatter = ({
   height,
   margin,
   data,
-  updateSelection,
+  onBrushDragged,
   selectionMade = false,
-  colorFunc,
   xScale,
   yScale,
   colorScale,
+  colorFunc,
   rScale,
   radius,
-  brush,
-  onBrushStart, // Inserted with HOC withBrush
-  onBrushDrag,
-  onBrushEnd,
-  onBrushReset,
   ...props
 }: ScatterProps) => {
-  const radiusProvided = data.every(p => p.r);
 
   const svg: React.RefObject<SVGSVGElement> = React.createRef();
 
   const handleMouseDown = (event: React.MouseEvent) => {
     const coords = getCoordsFromEvent(svg.current, event); // {x, y}
-    onBrushStart(coords);
+    props.onBrushStart(coords); // Inserted with HOC withBrush
   };
 
   const handleMouseMove = (event: React.MouseEvent) => {
-    if (brush.isBrushing) {
+    if (props.brush.isBrushing) {
       const coords = getCoordsFromEvent(svg.current, event); // {x, y}
-      onBrushDrag(coords);
+      props.onBrushDrag(coords); // Inserted with HOC withBrush
     }
   };
 
   const handleMouseUp = (event: React.MouseEvent) => {
     // Inserted with HOC withBrush
-    if (brush.end) {
+    if (props.brush.end) {
       const coords = getCoordsFromEvent(svg.current, event); // {x, y}
-      onBrushEnd(coords);
+      props.onBrushEnd(coords); // Inserted with HOC withBrush
 
       // Sub-domain of the data points to be selected in the data-space
-      const x0 = xScale.invert(brush.start.x);
-      const x1 = xScale.invert(brush.end.x);
-      const y0 = yScale.invert(brush.start.y);
-      const y1 = yScale.invert(brush.end.y);
+      const x0 = xScale.invert(props.brush.start.x);
+      const x1 = xScale.invert(props.brush.end.x);
+      const y0 = yScale.invert(props.brush.start.y);
+      const y1 = yScale.invert(props.brush.end.y);
 
-      updateSelection({
+      onBrushDragged({
         x0: Math.min(x0, x1),
         x1: Math.max(x0, x1),
         y0: Math.min(y0, y1),
         y1: Math.max(y0, y1),
       });
     } else {
-      onBrushReset(event);
+      props.onBrushReset(event); // Inserted with HOC withBrush
       props.clearSelection();
     }
   };
@@ -114,7 +106,7 @@ const Scatter = ({
             <circle
               cx={xScale(point.x)}
               cy={yScale(point.y)}
-              r={radiusProvided ? rScale(point.r) : radius}
+              r={data.every(p => p.r) ? rScale(point.r) : radius}
               key={k}
               fill={colorFunc(colorScale(point.z))}
               // Make unselected points translucent but opaque if no selection is made
@@ -123,7 +115,7 @@ const Scatter = ({
           );
         })}
       </g>
-      <BoxBrush brush={brush} />
+      <BoxBrush brush={props.brush} />
     </svg>
   );
 };

@@ -70,7 +70,7 @@ const App = () => {
         colorFunc={interpolateYlOrBr}
         margin={margin}
         selectionMade={selectionMade}
-        updateSelection={updateSelection}
+        onBrushDragged={updateSelection}
         clearSelection={clearSelection}
       />
       <ScatterPlot
@@ -81,7 +81,7 @@ const App = () => {
         colorFunc={interpolateYlOrBr}
         margin={margin}
         selectionMade={selectionMade}
-        updateSelection={updateSelection}
+        onBrushDragged={updateSelection}
         clearSelection={clearSelection}
       />
     </div>

@@ -13,9 +13,9 @@ interface WithAxesProps {
 }
 
 const withScales = <P extends object>(WrappedComponent: React.ComponentType<P>) => (
-  props: WithAxesProps,
+  {minRadius, maxRadius, ...props}: WithAxesProps,
 ) => {
-  const { data, margin, width, height, minRadius, maxRadius } = props;
+  const { data, margin, width, height } = props;
   // The min-max of the data set
   const initialDomain = {
     x: extent(data, (point: Point) => point.x),
