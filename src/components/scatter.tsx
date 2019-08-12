@@ -37,20 +37,46 @@ interface ScatterProps {
   selectionMade: boolean;
 }
 
-class Scatter extends React.PureComponent<ScatterProps> {
-  svg: React.RefObject<SVGSVGElement> = React.createRef();
+const Scatter = ({
+  width,
+  height,
+  margin,
+  data,
+  updateSelection,
+  selectionMade = false,
+  colorFunc,
+  xScale,
+  yScale,
+  colorScale,
+  rScale,
+  radius,
+  brush,
+  onBrushStart, // Inserted with HOC withBrush
+  onBrushDrag,
+  onBrushEnd,
+  onBrushReset,
+  ...props
+}: ScatterProps) => {
+  const radiusProvided = data.every(p => p.r);
 
-  handleMouseDown = (event: React.MouseEvent) => {
-    const { onBrushStart } = this.props; // Inserted with HOC withBrush
-    const coords = getCoordsFromEvent(this.svg.current, event); // {x, y}
+  const svg: React.RefObject<SVGSVGElement> = React.createRef();
+
+  const handleMouseDown = (event: React.MouseEvent) => {
+    const coords = getCoordsFromEvent(svg.current, event); // {x, y}
     onBrushStart(coords);
   };
 
-  handleMouseUp = (event: React.MouseEvent) => {
-    const { brush, onBrushEnd, onBrushReset, updateSelection, xScale, yScale } = this.props; // Inserted with HOC withBrush
+  const handleMouseMove = (event: React.MouseEvent) => {
+    if (brush.isBrushing) {
+      const coords = getCoordsFromEvent(svg.current, event); // {x, y}
+      onBrushDrag(coords);
+    }
+  };
 
+  const handleMouseUp = (event: React.MouseEvent) => {
+    // Inserted with HOC withBrush
     if (brush.end) {
-      const coords = getCoordsFromEvent(this.svg.current, event); // {x, y}
+      const coords = getCoordsFromEvent(svg.current, event); // {x, y}
       onBrushEnd(coords);
 
       // Sub-domain of the data points to be selected in the data-space
@@ -65,68 +91,41 @@ class Scatter extends React.PureComponent<ScatterProps> {
         y0: Math.min(y0, y1),
         y1: Math.max(y0, y1),
       });
-
-
     } else {
       onBrushReset(event);
-      this.props.clearSelection();
+      props.clearSelection();
     }
   };
 
-  handleMouseMove = (event: React.MouseEvent) => {
-    const { brush, onBrushDrag } = this.props; // Inserted with HOC withBrush
-    if (brush.isBrushing) {
-      const coords = getCoordsFromEvent(this.svg.current, event); // {x, y}
-      onBrushDrag(coords);
-    }
-  };
-
-  render() {
-    const {
-      data,
-      selectionMade,
-      margin,
-      colorFunc,
-      brush,
-      xScale,
-      yScale,
-      colorScale,
-      rScale,
-    } = this.props;
-
-    return (
-      <svg
-        width={this.props.width}
-        height={this.props.height}
-        ref={this.svg}
-        onMouseDown={this.handleMouseDown}
-        onMouseUp={this.handleMouseUp}
-        onMouseMove={this.handleMouseMove}
-      >
-        <AxisLeft scale={yScale} label="y" left={margin.left} />
-        <AxisBottom scale={xScale} label="x" top={this.props.height - margin.bottom} />
-        <g>
-          {data.map((point, k) => {
-            const cx = xScale(point.x);
-            const cy = yScale(point.y);
-            const r = rScale(point.r);
-            return (
-              <circle
-                cx={cx}
-                cy={cy}
-                r={data.every(p => p.r) ? r : this.props.radius}
-                key={k}
-                fill={colorFunc(colorScale(point.z))}
-                // Make unselected points translucent but opaque if no selection is made
-                opacity={selectionMade ? (point.selected ? 1 : 0.2) : 1}
-              />
-            );
-          })}
-        </g>
-        <BoxBrush brush={brush} />
-      </svg>
-    );
-  }
-}
+  return (
+    <svg
+      width={width}
+      height={height}
+      ref={svg}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+    >
+      <AxisLeft scale={yScale} label="y" left={margin.left} />
+      <AxisBottom scale={xScale} label="x" top={height - margin.bottom} />
+      <g>
+        {data.map((point, k) => {
+          return (
+            <circle
+              cx={xScale(point.x)}
+              cy={yScale(point.y)}
+              r={radiusProvided ? rScale(point.r) : radius}
+              key={k}
+              fill={colorFunc(colorScale(point.z))}
+              // Make unselected points translucent but opaque if no selection is made
+              opacity={selectionMade ? (point.selected ? 1 : 0.2) : 1}
+            />
+          );
+        })}
+      </g>
+      <BoxBrush brush={brush} />
+    </svg>
+  );
+};
 
 export default withBrush(withScales(Scatter));
